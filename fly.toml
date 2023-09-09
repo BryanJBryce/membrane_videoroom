@@ -1,30 +1,35 @@
-# fly.toml app configuration file generated for zumbl-demo on 2023-09-09T11:25:50-07:00
+# fly.toml app configuration file generated for zumbl2 on 2023-09-09T15:28:35-07:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = "zumbl-demo"
+app = "zumbl2"
 primary_region = "lax"
 kill_signal = "SIGTERM"
 swap_size_mb = 512
 
 [build]
 
-[deploy]
-  release_command = "/app/bin/migrate"
+# [deploy]
+# release_command = "/app/bin/migrate"
+release_command = "./docker-entrypoint.sh"
 
 [env]
-  PHX_HOST = "zumbl-demo.fly.dev"
-  PORT = "8080"
+# EXTERNAL_IP = "137.66.56.44"
+EXTERNAL_IP = "149.248.215.49"
+PHX_HOST = "zumbl2.fly.dev"
+PORT = "8080"
+# VIRTUAL_HOST = "137.66.56.44"
+VIRTUAL_HOST = "zumbl2.fly.dev"
 
 [http_service]
-  internal_port = 8080
-  force_https = true
-  auto_stop_machines = true
-  auto_start_machines = true
-  min_machines_running = 0
-  processes = ["app"]
-  [http_service.concurrency]
-    type = "connections"
-    hard_limit = 1000
-    soft_limit = 1000
+internal_port = 8080
+force_https = true
+auto_stop_machines = true
+auto_start_machines = true
+min_machines_running = 0
+processes = ["app"]
+[http_service.concurrency]
+type = "connections"
+hard_limit = 1000
+soft_limit = 1000

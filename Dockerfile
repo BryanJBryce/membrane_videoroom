@@ -1,88 +1,81 @@
-# Find eligible builder and runner images on Docker Hub. We use Ubuntu/Debian instead of
-# Alpine to avoid DNS resolution issues in production.
-#
-# https://hub.docker.com/r/hexpm/elixir/tags?page=1&name=ubuntu
-# https://hub.docker.com/_/ubuntu?tab=tags
-#
-#
-# This file is based on these images:
-#
-#   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
-#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20230202-slim - for the release image
-#   - https://pkgs.org/ - resource for finding needed packages
-#   - Ex: hexpm/elixir:1.14.3-erlang-25.2.3-debian-bullseye-20230202-slim
-#
-ARG ELIXIR_VERSION=1.14.3
-ARG OTP_VERSION=25.2.3
-ARG DEBIAN_VERSION=bullseye-20230202-slim
+FROM hexpm/elixir:1.14.3-erlang-25.2.3-alpine-3.16.3 AS build
 
-ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
-ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
+# install build dependencies
+RUN \
+  apk add --no-cache \
+  build-base \
+  npm \
+  git \
+  python3 \
+  make \
+  cmake \
+  openssl-dev \ 
+  libsrtp-dev \
+  ffmpeg-dev \
+  clang-dev
 
-# Start with the builder image from the second Dockerfile
-FROM ${BUILDER_IMAGE} as builder
+ARG VERSION
+ENV VERSION=${VERSION}
 
-# Install build dependencies from both Dockerfiles
-RUN apt-get update -y && \
-  apt-get install -y build-essential git npm python3 make cmake openssl libsrtp-dev ffmpeg-dev clang && \
-  apt-get clean && rm -f /var/lib/apt/lists/*_*
-
-# Set working directory and environment variables
+# Create build workdir
 WORKDIR /app
-ENV MIX_ENV="prod"
 
-# Install Hex and Rebar
+# install hex + rebar
 RUN mix local.hex --force && \
   mix local.rebar --force
 
-# Copy files and install dependencies
+# set build ENV
+ENV MIX_ENV=prod
+
+# install mix dependencies
 COPY mix.exs mix.lock ./
-RUN mix deps.get --only $MIX_ENV
 COPY config config
+COPY assets assets
+COPY priv priv
+# the lib code must be there first so the tailwindcss can properly inspect the code
+# to gather necessary classes to generate
+COPY lib lib
+
+RUN mix setup
 RUN mix deps.compile
 
-# Copy application code and assets
-COPY priv priv
-COPY lib lib
-COPY assets assets
-
-# Compile assets and code
 RUN mix assets.deploy
-RUN mix compile
 
-# Copy runtime config
-COPY config/runtime.exs config/
+# compile and build release
 
-# Copy release configuration
-COPY rel rel
+RUN mix do compile, release
 
-# Build the release
-RUN mix release
+# prepare release image
+FROM alpine:3.16.3 AS app
 
-# Start a new build stage for the running environment
-FROM ${RUNNER_IMAGE}
+# install runtime dependencies
+RUN \
+  apk add --no-cache \
+  openssl \
+  ncurses-libs \
+  libsrtp \
+  ffmpeg \
+  clang \ 
+  curl
 
-# Install runtime dependencies
-RUN apt-get update -y && \
-  apt-get install -y libstdc++6 openssl libncurses5 locales libsrtp ffmpeg clang curl && \
-  apt-get clean && rm -f /var/lib/apt/lists/*_*
+WORKDIR /app
 
-# Set the locale and environment variables
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+RUN chown nobody:nobody /app
 
-# Set work directory and permissions
-WORKDIR "/app"
-RUN chown nobody /app
-ENV MIX_ENV="prod"
+USER nobody:nobody
 
-# Copy the compiled app
-COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/membrane_videoroom_demo ./
+COPY --from=build --chown=nobody:nobody /app/_build/prod/rel/membrane_videoroom_demo ./
 
-# Set user
-USER nobody
+ENV HOME=/app
 
-# Set the command to run
-CMD ["/app/bin/server"]
+EXPOSE 4000
+
+HEALTHCHECK CMD curl --fail http://localhost:4000 || exit 1  
+
+COPY --chown=nobody:nobody docker-entrypoint.sh ./docker-entrypoint.sh
+
+RUN chmod +x docker-entrypoint.sh
+
+# ENTRYPOINT ["./docker-entrypoint.sh"]
+
+CMD ["bin/membrane_videoroom_demo", "start"]

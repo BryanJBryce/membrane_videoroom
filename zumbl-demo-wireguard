@@ -1,0 +1,12 @@
+
+[Interface]
+PrivateKey = PVIRYrw+PT/WpLtdc8EF+MYsJ4HREACTtXoKIwYLkiA=
+Address = fdaa:0:50e6:a7b:1537:0:a:102/120
+DNS = fdaa:0:50e6::3
+
+[Peer]
+PublicKey = vsNMvNdCmUiVzwp0v6bkeO0pcMhy4pak2E2Z/CF2ywA=
+AllowedIPs = fdaa:0:50e6::/48
+Endpoint = lax1.gateway.6pn.dev:51820
+PersistentKeepalive = 15
+

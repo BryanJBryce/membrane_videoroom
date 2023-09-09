@@ -1,4 +1,5 @@
 import Config
+require Membrane.Logger
 
 defmodule ConfigParser do
   def parse_integrated_turn_ip(ip) do
@@ -92,7 +93,7 @@ get_env = fn env, default ->
 end
 
 host = get_env.("VIRTUAL_HOST", "localhost")
-port = 4000
+port = String.to_integer(System.get_env("PORT") || "4000")
 
 args =
   if protocol == :https do
@@ -107,7 +108,7 @@ args =
   |> Keyword.merge(otp_app: :membrane_videoroom_demo, port: port)
 
 config :membrane_videoroom_demo, VideoRoomWeb.Endpoint, [
-  {:url, [host: host]},
+  {:url, [host: host, port: port]},
   {protocol, args}
 ]
 
@@ -156,9 +157,29 @@ else
   config :opentelemetry, traces_exporter: :none
 end
 
-config :membrane_videoroom_demo, VideoRoom.Repo,
-  database: System.get_env("DATABASE"),
-  username: System.get_env("DB_USERNAME"),
-  password: System.get_env("DB_PASSWORD"),
-  hostname: System.get_env("DB_HOSTNAME"),
-  port: System.get_env("DB_PORT", "5432") |> ConfigParser.parse_port_number("DB_PORT")
+if config_env() == :prod do
+  Membrane.Logger.info("YOLO: PROD DB")
+
+  database_url =
+    System.get_env("DATABASE_URL") ||
+      raise """
+      environment variable DATABASE_URL is missing.
+      For example: ecto://USER:PASS@HOST/DATABASE
+      """
+
+  maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
+
+  config :membrane_videoroom_demo, VideoRoom.Repo,
+    url: database_url,
+    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+    socket_options: maybe_ipv6
+else
+  Membrane.Logger.info("YOLO: DEV DB")
+
+  config :membrane_videoroom_demo, VideoRoom.Repo,
+    database: System.get_env("DATABASE"),
+    username: System.get_env("DB_USERNAME"),
+    password: System.get_env("DB_PASSWORD"),
+    hostname: System.get_env("DB_HOSTNAME"),
+    port: System.get_env("DB_PORT", "5432") |> ConfigParser.parse_port_number("DB_PORT")
+end
