@@ -1,81 +1,92 @@
-FROM hexpm/elixir:1.14.3-erlang-25.2.3-alpine-3.16.3 AS build
+# Find eligible builder and runner images on Docker Hub. We use Ubuntu/Debian instead of
+# Alpine to avoid DNS resolution issues in production.
+#
+# https://hub.docker.com/r/hexpm/elixir/tags?page=1&name=ubuntu
+# https://hub.docker.com/_/ubuntu?tab=tags
+#
+#
+# This file is based on these images:
+#
+#   - https://hub.docker.com/r/hexpm/elixir/tags - for the build image
+#   - https://hub.docker.com/_/debian?tab=tags&page=1&name=bullseye-20230202-slim - for the release image
+#   - https://pkgs.org/ - resource for finding needed packages
+#   - Ex: hexpm/elixir:1.14.3-erlang-25.2.3-debian-bullseye-20230202-slim
+#
+ARG ELIXIR_VERSION=1.14.3
+ARG OTP_VERSION=25.2.3
+ARG DEBIAN_VERSION=bullseye-20230202-slim
+
+ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
+ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
+
+FROM ${BUILDER_IMAGE} as builder
 
 # install build dependencies
-RUN \
-  apk add --no-cache \
-  build-base \
-  npm \
-  git \
-  python3 \
-  make \
-  cmake \
-  openssl-dev \ 
-  libsrtp-dev \
-  ffmpeg-dev \
-  clang-dev
+RUN apt-get update -y && apt-get install -y build-essential git \
+    && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-ARG VERSION
-ENV VERSION=${VERSION}
-
-# Create build workdir
+# prepare build dir
 WORKDIR /app
 
 # install hex + rebar
 RUN mix local.hex --force && \
-  mix local.rebar --force
+    mix local.rebar --force
 
 # set build ENV
-ENV MIX_ENV=prod
+ENV MIX_ENV="prod"
 
 # install mix dependencies
 COPY mix.exs mix.lock ./
-COPY config config
-COPY assets assets
-COPY priv priv
-# the lib code must be there first so the tailwindcss can properly inspect the code
-# to gather necessary classes to generate
-COPY lib lib
+RUN mix deps.get --only $MIX_ENV
+RUN mkdir config
 
-RUN mix setup
+# copy compile-time config files before we compile dependencies
+# to ensure any relevant config change will trigger the dependencies
+# to be re-compiled.
+COPY config/config.exs config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
+COPY priv priv
+
+COPY lib lib
+
+COPY assets assets
+
+# compile assets
 RUN mix assets.deploy
 
-# compile and build release
+# Compile the release
+RUN mix compile
 
-RUN mix do compile, release
+# Changes to config/runtime.exs don't require recompiling the code
+COPY config/runtime.exs config/
 
-# prepare release image
-FROM alpine:3.16.3 AS app
+COPY rel rel
+RUN mix release
 
-# install runtime dependencies
-RUN \
-  apk add --no-cache \
-  openssl \
-  ncurses-libs \
-  libsrtp \
-  ffmpeg \
-  clang \ 
-  curl
+# start a new build stage so that the final image will only contain
+# the compiled release and other runtime necessities
+FROM ${RUNNER_IMAGE}
 
-WORKDIR /app
+RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses5 locales \
+  && apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-RUN chown nobody:nobody /app
+# Set the locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 
-USER nobody:nobody
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 
-COPY --from=build --chown=nobody:nobody /app/_build/prod/rel/membrane_videoroom_demo ./
+WORKDIR "/app"
+RUN chown nobody /app
 
-ENV HOME=/app
+# set runner ENV
+ENV MIX_ENV="prod"
 
-EXPOSE 4000
+# Only copy the final release from the build stage
+COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/membrane_videoroom_demo ./
 
-HEALTHCHECK CMD curl --fail http://localhost:4000 || exit 1  
+USER nobody
 
-COPY --chown=nobody:nobody docker-entrypoint.sh ./docker-entrypoint.sh
-
-RUN chmod +x docker-entrypoint.sh
-
-ENTRYPOINT ["./docker-entrypoint.sh"]
-
-CMD ["bin/membrane_videoroom_demo", "start"]
+CMD ["/app/bin/server"]
