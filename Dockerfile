@@ -19,74 +19,70 @@ ARG DEBIAN_VERSION=bullseye-20230202-slim
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
 
+# Start with the builder image from the second Dockerfile
 FROM ${BUILDER_IMAGE} as builder
 
-# install build dependencies
-RUN apt-get update -y && apt-get install -y build-essential git \
-    && apt-get clean && rm -f /var/lib/apt/lists/*_*
+# Install build dependencies from both Dockerfiles
+RUN apt-get update -y && \
+  apt-get install -y build-essential git npm python3 make cmake openssl libsrtp-dev ffmpeg-dev clang && \
+  apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-# prepare build dir
+# Set working directory and environment variables
 WORKDIR /app
-
-# install hex + rebar
-RUN mix local.hex --force && \
-    mix local.rebar --force
-
-# set build ENV
 ENV MIX_ENV="prod"
 
-# install mix dependencies
+# Install Hex and Rebar
+RUN mix local.hex --force && \
+  mix local.rebar --force
+
+# Copy files and install dependencies
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV
-RUN mkdir config
-
-# copy compile-time config files before we compile dependencies
-# to ensure any relevant config change will trigger the dependencies
-# to be re-compiled.
-COPY config/config.exs config/${MIX_ENV}.exs config/
+COPY config config
 RUN mix deps.compile
 
+# Copy application code and assets
 COPY priv priv
-
 COPY lib lib
-
 COPY assets assets
 
-# compile assets
+# Compile assets and code
 RUN mix assets.deploy
-
-# Compile the release
 RUN mix compile
 
-# Changes to config/runtime.exs don't require recompiling the code
+# Copy runtime config
 COPY config/runtime.exs config/
 
+# Copy release configuration
 COPY rel rel
+
+# Build the release
 RUN mix release
 
-# start a new build stage so that the final image will only contain
-# the compiled release and other runtime necessities
+# Start a new build stage for the running environment
 FROM ${RUNNER_IMAGE}
 
-RUN apt-get update -y && apt-get install -y libstdc++6 openssl libncurses5 locales \
-  && apt-get clean && rm -f /var/lib/apt/lists/*_*
+# Install runtime dependencies
+RUN apt-get update -y && \
+  apt-get install -y libstdc++6 openssl libncurses5 locales libsrtp ffmpeg clang curl && \
+  apt-get clean && rm -f /var/lib/apt/lists/*_*
 
-# Set the locale
+# Set the locale and environment variables
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
+# Set work directory and permissions
 WORKDIR "/app"
 RUN chown nobody /app
-
-# set runner ENV
 ENV MIX_ENV="prod"
 
-# Only copy the final release from the build stage
+# Copy the compiled app
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/membrane_videoroom_demo ./
 
+# Set user
 USER nobody
 
+# Set the command to run
 CMD ["/app/bin/server"]
