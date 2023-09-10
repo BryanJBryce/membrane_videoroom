@@ -6,30 +6,70 @@
 app = "zumbl2"
 primary_region = "lax"
 kill_signal = "SIGTERM"
+kill_timeout = 5
+processes = []
 swap_size_mb = 512
 
 [build]
 
 # [deploy]
 # release_command = "/app/bin/migrate"
-release_command = "./docker-entrypoint.sh"
+# release_command = "./docker-entrypoint.sh"
 
 [env]
-# EXTERNAL_IP = "137.66.56.44"
 EXTERNAL_IP = "149.248.215.49"
 PHX_HOST = "zumbl2.fly.dev"
-PORT = "8080"
-# VIRTUAL_HOST = "137.66.56.44"
+# PORT = "8080"
 VIRTUAL_HOST = "zumbl2.fly.dev"
+INTEGRATED_TURN_IP = "149.248.215.49"
+INTEGRATED_TURN_PORT_RANGE = "50000-59999"
+INTEGRATED_TURN_LISTEN_IP = "fly-global-services"
+PORT = "4000"
+WEBRTC_USED = "true"
 
-[http_service]
-internal_port = 8080
-force_https = true
-auto_stop_machines = true
-auto_start_machines = true
-min_machines_running = 0
-processes = ["app"]
-[http_service.concurrency]
-type = "connections"
+[experimental]
+auto_rollback = true
+# [http_service]
+# internal_port = 8080
+# force_https = true
+# auto_stop_machines = true
+# auto_start_machines = true
+# min_machines_running = 0
+# processes = ["app"]
+# [http_service.concurrency]
+# type = "connections"
+# hard_limit = 1000
+# soft_limit = 1000
+
+[[services]]
+http_checks = []
+internal_port = 4000
+# internal_port = 8080
+protocol = "tcp"
+script_checks = []
+[services.concurrency]
 hard_limit = 1000
 soft_limit = 1000
+type = "connections"
+
+[[services.ports]]
+force_https = true
+handlers = ["http"]
+port = 80
+
+[[services.ports]]
+handlers = ["tls", "http"]
+port = 443
+
+[[services.tcp_checks]]
+grace_period = "1s"
+interval = "15s"
+restart_limit = 0
+timeout = "2s"
+
+[[services]]
+internal_port = 50000
+protocol = "udp"
+
+[[services.ports]]
+port = 50000

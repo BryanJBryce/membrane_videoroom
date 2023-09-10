@@ -42,8 +42,11 @@ defmodule Videoroom.Room do
     Logger.metadata(room_id: room_id)
     Membrane.Logger.info("Spawning room process: #{inspect(self())}")
 
+    # turn_mock_ip = Application.fetch_env!(:membrane_videoroom_demo, :integrated_turn_ip)
+    # turn_ip = if @mix_env == :prod, do: {0, 0, 0, 0}, else: turn_mock_ip
+
     turn_mock_ip = Application.fetch_env!(:membrane_videoroom_demo, :integrated_turn_ip)
-    turn_ip = if @mix_env == :prod, do: {0, 0, 0, 0}, else: turn_mock_ip
+    turn_ip = Application.fetch_env!(:membrane_videoroom_demo, :integrated_turn_listen_ip)
 
     trace_ctx = Membrane.OpenTelemetry.new_ctx()
     Membrane.OpenTelemetry.attach(trace_ctx)

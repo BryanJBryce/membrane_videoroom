@@ -65,6 +65,7 @@ end
 config :membrane_videoroom_demo,
   integrated_turn_ip:
     System.get_env("EXTERNAL_IP", "127.0.0.1") |> ConfigParser.parse_integrated_turn_ip(),
+  integrated_turn_listen_ip: System.get_env("INTEGRATED_TURN_LISTEN_IP", "0.0.0.0"),
   integrated_turn_port_range:
     System.get_env("INTEGRATED_TURN_PORT_RANGE", "50000-59999")
     |> ConfigParser.parse_integrated_turn_port_range(),
