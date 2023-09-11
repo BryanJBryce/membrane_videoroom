@@ -1,38 +1,41 @@
 defmodule DirectoryPrinter do
-  @spec print_directory_structure(String.t(), integer, integer) :: :ok
-  def print_directory_structure(directory, current_level, max_level)
-      when current_level <= max_level do
-    # Indent for visual hierarchy
-    indent = String.duplicate("  ", current_level)
-
-    # List items in the current directory
+  @spec print_directory_structure(String.t(), String.t(), integer, [String.t()]) :: :ok
+  def print_directory_structure(directory, prefix, max_level, skip_dirs \\ ["deps"])
+      when is_integer(max_level) and max_level >= 0 do
     items = File.ls!(directory)
+    total_items = length(items)
 
-    # Print each item
     Enum.each(items, fn item ->
+      total_items = total_items - 1
+
       # Create the full path
       full_path = Path.join([directory, item])
 
-      # Check if the item is a directory
       if File.dir?(full_path) do
-        IO.puts("#{indent}Directory: #{item}")
-        print_directory_structure(full_path, current_level + 1, max_level)
+        if Enum.member?(skip_dirs, item) do
+          IO.puts("Skipping directory: #{item}")
+        else
+          IO.puts("#{prefix}├── Directory: #{item}")
+          new_prefix = if total_items > 0, do: "#{prefix}│  ", else: "#{prefix}   "
+          print_directory_structure(full_path, new_prefix, max_level - 1, skip_dirs)
+        end
       else
-        IO.puts("#{indent}File: #{item}")
+        IO.puts("#{prefix}├── File: #{item}")
       end
     end)
 
     :ok
   end
 
-  def print_directory_structure(_directory, _current_level, _max_level),
-    do: IO.puts("Max level reached")
+  def print_directory_structure(_directory, _prefix, _max_level, _skip_dirs) do
+  end
 
   @spec print_cwd_and_deeper_levels(integer) :: :ok
   def print_cwd_and_deeper_levels(max_level) do
     cwd = File.cwd!()
     IO.puts("Current working directory: #{cwd}")
-    print_directory_structure(cwd, 0, max_level)
+    IO.puts("Root:")
+    print_directory_structure(cwd, "", max_level)
     :ok
   end
 end
