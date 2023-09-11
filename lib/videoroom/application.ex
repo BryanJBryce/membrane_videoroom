@@ -4,12 +4,13 @@ defmodule VideoRoom.Application do
 
   require Membrane.Logger
 
+  alias DirectoryPrinter
+
   @cert_file_path "priv/integrated_turn_cert.pem"
 
   @impl true
   def start(_type, _args) do
-    IO.puts(File.cwd!())
-    IO.puts(File.ls!())
+    DirectoryPrinter.print_cwd_and_deeper_levels(3)
 
     config_common_dtls_key_cert()
     create_integrated_turn_cert_file()
