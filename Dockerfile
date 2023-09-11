@@ -77,11 +77,11 @@ HEALTHCHECK CMD curl --fail http://localhost:4000 || exit 1
 
 COPY --chown=nobody:nobody /priv/key.cert ./priv/key.cert
 
+RUN chmod +x priv/key.cert
+
+COPY --chown=nobody:nobody /priv/key.priv ./priv/key.priv
+
 RUN chmod +x priv/key.priv
-
-# COPY --chown=nobody:nobody /priv/key.priv ./priv/key.priv
-
-# RUN chmod +x priv/key.priv
 
 
 
