@@ -54,7 +54,6 @@ defmodule VideoRoom.Application do
       cert = File.read!(cert_path)
       pkey = File.read!(pkey_path)
 
-      File.chmod!(@cert_file_path, 0o600)
       File.touch!(@cert_file_path)
       File.chmod!(@cert_file_path, 0o600)
       File.write!(@cert_file_path, "#{cert}\n#{pkey}")
