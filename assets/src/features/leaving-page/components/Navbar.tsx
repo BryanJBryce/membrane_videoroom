@@ -15,9 +15,9 @@ const Navbar: React.FC = () => {
 
   return (
     <div className="flex w-full flex-row justify-between gap-y-4">
-      <PlainLink href="/" name="home-page" className="my-auto self-start">
+      {/* <PlainLink href="/" name="home-page" className="my-auto self-start">
         {isSmartphone ? <SignetContourBlueLogo /> : <HorizontalContourBlueLogo className="text-5xl" />}
-      </PlainLink>
+      </PlainLink> */}
       <div className="flex flex-row items-center gap-x-3 font-aktivGrotesk">
         <Button
           href={`/room/${roomId}`}

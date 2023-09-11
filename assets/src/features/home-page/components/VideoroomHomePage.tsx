@@ -162,7 +162,7 @@ const VideoroomHomePage: React.FC = () => {
     <HomePageLayout>
       <section className="flex h-full w-full flex-col items-center justify-center gap-y-8 sm:w-auto sm:gap-y-14 2xl:gap-y-28">
         <div className="flex flex-col items-center gap-y-2 text-center sm:gap-y-6">
-          <h2 className="text-xl font-medium tracking-wide sm:text-5xl">Videoconferencing for everyone</h2>
+          <h2 className="text-xl font-medium tracking-wide sm:text-5xl">Zumbl Videoconferencing for Crumbl</h2>
           <p className="hidden font-aktivGrotesk text-xl sm:inline-block">
             Join the existing room or create a new one to start the meeting
           </p>

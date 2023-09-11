@@ -17,7 +17,18 @@ module.exports = {
         50: "12.5rem",
       },
       fontFamily: {
+        montserrat: [
+          "Montserrat",
+          "Roboto",
+          "sans-serif",
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+        ],
         aktivGrotesk: [
+          "Montserrat",
           "aktiv-grotesk",
           "Roboto",
           "sans-serif",
@@ -28,6 +39,7 @@ module.exports = {
           '"Segoe UI"',
         ],
         rocGrotesk: [
+          "Montserrat",
           "roc-grotesk",
           "Roboto",
           "sans-serif",
