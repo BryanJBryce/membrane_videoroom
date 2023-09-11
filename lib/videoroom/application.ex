@@ -8,6 +8,9 @@ defmodule VideoRoom.Application do
 
   @impl true
   def start(_type, _args) do
+    IO.puts(File.cwd!())
+    IO.puts(File.ls!())
+
     config_common_dtls_key_cert()
     create_integrated_turn_cert_file()
 
