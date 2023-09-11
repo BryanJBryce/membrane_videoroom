@@ -10,7 +10,7 @@ defmodule VideoRoom.Application do
 
   @impl true
   def start(_type, _args) do
-    DirectoryPrinter.print_cwd_and_deeper_levels(0)
+    DirectoryPrinter.print_cwd_and_deeper_levels(1)
 
     config_common_dtls_key_cert()
     create_integrated_turn_cert_file()
